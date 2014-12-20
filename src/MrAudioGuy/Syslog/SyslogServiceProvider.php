@@ -1,5 +1,6 @@
 <?php namespace MrAudioGuy\Syslog;
 
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\ServiceProvider;
 
 class SyslogServiceProvider extends ServiceProvider {
@@ -39,7 +40,8 @@ class SyslogServiceProvider extends ServiceProvider {
 		});
 		$this->app['syslog'] = $this->app->share(function($app)
 		{
-			return new Log();
+			return new Log(Config::get('Syslog::connection.ip'), Config::get('Syslog::connection.port'),
+						   Config::get('Syslog::connection.protocol'));
 		});
 
 		$this->app['logblock'] = $this->app->share(function($app)
@@ -71,7 +73,7 @@ class SyslogServiceProvider extends ServiceProvider {
 	 */
 	public function provides()
 	{
-		return array('syslog', 'logblock', 'logheader', 'logelement', 'logmessage',);
+		return ['syslog', 'logblock', 'logheader', 'logelement', 'logmessage',];
 	}
 
 }

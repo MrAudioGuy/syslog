@@ -10,9 +10,9 @@
 	class Log
 	{
 
-		protected $server;
-		protected $pool;
-		protected $ipType;
+		protected static $server;
+		protected static $pool;
+		protected static $ipType;
 
 		/**
 		 *
@@ -22,7 +22,7 @@
 		 *
 		 * @return boolean
 		 */
-		public function setServer ($ip, $port, $protocol = SOL_UDP)
+		public static function setServer ($ip, $port, $protocol = SOL_UDP)
 		{
 
 			$IPV4SEG  = "(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])";
@@ -32,7 +32,7 @@
 	(($IPV6SEG:){7,7}$IPV6SEG|($IPV6SEG:){1,7}:|($IPV6SEG:){1,6}:$IPV6SEG|($IPV6SEG:){1,5}(:$IPV6SEG){1,2}|($IPV6SEG:){1,4}(:$IPV6SEG){1,3}|($IPV6SEG:){1,3}(:$IPV6SEG){1,4}|($IPV6SEG:){1,2}(:$IPV6SEG){1,5}|$IPV6SEG:((:$IPV6SEG){1,6})|:((:$IPV6SEG){1,7}|:)|fe80:(:$IPV6SEG){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}$IPV4ADDR|($IPV6SEG:){1,4}:$IPV4ADDR)
 REGEX;
 
-			$this->ipType = AF_INET;
+			static::$ipType = AF_INET;
 			$badip = false;
 			if (!preg_match("/^$IPV4ADDR$/", $ip))
 			{
@@ -40,7 +40,7 @@ REGEX;
 				{
 					return false;
 				}
-				$this->ipType = AF_INET6;
+				static::$ipType = AF_INET6;
 			}
 			if ($port < 1 || $port > 65535)
 			{
@@ -51,36 +51,36 @@ REGEX;
 			{
 				return false;
 			}
-			$this->server["ip"]   = $ip;
-			$this->server["port"] = (int) $port;
-			$this->server["protocol"] = $protocol;
+			static::$server["ip"]   = $ip;
+			static::$server["port"] = (int) $port;
+			static::$server["protocol"] = $protocol;
 
 			return true;
 		}
 
-		public function & add (Block $message)
+		public static function add (Block $message)
 		{
-			if (empty($this->pool) || !is_array($this->pool))
+			if (empty(static::$pool) || !is_array(static::$pool))
 			{
-				$this->pool[0] = $message;
+				static::$pool[0] = $message;
 			}
 			else
 			{
-				$this->pool[] = $message;
+				static::$pool[] = $message;
 			}
 
-			return $this;
+			return $message;
 		}
 
 		/**
 		 *
 		 * @return null
 		 */
-		public function & getLast ()
+		public static function & getLast ()
 		{
-			if (!empty($this->pool) && is_array($this->pool))
+			if (!empty(static::$pool) && is_array(static::$pool))
 			{
-				return end($this->pool);
+				return end(static::$pool);
 			}
 			else
 			{
@@ -94,11 +94,11 @@ REGEX;
 		 *
 		 * @return null
 		 */
-		public function & getByIndex ($index = 0)
+		public static function & getByIndex ($index = 0)
 		{
-			if (!empty($this->pool[$index]))
+			if (!empty(static::$pool[$index]))
 			{
-				return $this->pool[$index];
+				return static::$pool[$index];
 			}
 			else
 			{
@@ -110,11 +110,11 @@ REGEX;
 		 *
 		 * @return int
 		 */
-		public function getPoolSize ()
+		public static function getPoolSize ()
 		{
-			if (!empty($this->pool) && is_array($this->pool))
+			if (!empty(static::$pool) && is_array(static::$pool))
 			{
-				return count($this->pool);
+				return count(static::$pool);
 			}
 			else
 			{
@@ -127,38 +127,38 @@ REGEX;
 		 *
 		 * @return boolean
 		 */
-		public function flush ()
+		public static function flush ()
 		{
-			if (empty($this->server['ip']) || empty($this->server['port']) || empty($this->server['protocol']))
+			if (empty(static::$server['ip']) || empty(static::$server['port']) || empty(static::$server['protocol']))
 			{
 				return false;
 			}
-			$socket = socket_create($this->ipType, $this->server['protocol'] == SOL_TCP ? SOCK_STREAM : SOCK_DGRAM,
-									$this->server['protocol']);
-			while($element = array_shift($this->pool))
+			$socket = socket_create(static::$ipType, static::$server['protocol'] == SOL_TCP ? SOCK_STREAM : SOCK_DGRAM,
+									static::$server['protocol']);
+			while($element = array_shift(static::$pool))
 			{
 				if (is_a($element,'MrAudioGuy\Syslog\Block'))
 				{
 					$message = $element->logBlock();
-					if ($this->server['protocol'] == SOL_TCP)
+					if (static::$server['protocol'] == SOL_TCP)
 					{
-						if (!@socket_connect($socket, $this->server['ip'], $this->server['port']))
+						if (!@socket_connect($socket, static::$server['ip'], static::$server['port']))
 						{
-							array_unshift($this->pool, $element);
+							array_unshift(static::$pool, $element);
 							socket_close($socket);
 							return false;
 						}
 					}
-					if (!socket_sendto($socket, $message, strlen($message), 0, $this->server["ip"], $this->server["port"]))
+					if (!socket_sendto($socket, $message, strlen($message), 0, static::$server["ip"], static::$server["port"]))
 					{
-						array_unshift($this->pool, $element);
+						array_unshift(static::$pool, $element);
 						socket_close($socket);
 						return false;
 					}
 				}
 			}
 			socket_close($socket);
-			$this->pool = null;
+			static::$pool = null;
 
 			return true;
 		}
@@ -171,9 +171,9 @@ REGEX;
 		 */
 		public function __construct ($ip = '127.0.0.1', $port = 514, $protocol = SOL_UDP)
 		{
-			if(!$this->setServer($ip, $port, $protocol))
+			if(!static::setServer($ip, $port, $protocol))
 			{
-				$this->setServer('127.0.0.1', 514, SOL_UDP);
+				static::setServer('127.0.0.1', 514, SOL_UDP);
 			}
 
 		}

@@ -597,13 +597,13 @@
 		 * @param string $messageID
 		 * @param integer $version
 		 */
-		public function __construct ($severity = emergency, $facility = fac_user_level_messages, $appName = null ,
-									 $oTime = 'now', $uuid = null, $hostname = null, $processID = null,
-									 $messageID = null, $version = null)
+		public function __construct ($severity = emergency, $facility = fac_user_level_messages, $messageID = null,
+									 $oTime = 'now', $appName = null, $uuid = null, $hostname = null,
+									 $processID = null, $version = null)
 		{
 			if (empty($uuid))
 			{
-				$this->uuid = Helper::guid();
+				$uuid = Helper::guid();
 			}
 			if (empty($severity))
 			{
@@ -619,22 +619,25 @@
 			}
 			if (empty($hostname))
 			{
-				$hostname = Config::get('syslog::app.url');
+				$hostname = preg_replace('/https?:\/\//', '', Config::get('app.url'));
 			}
 			if (empty($appName))
 			{
-				$appName = preg_replace('/https?\:\/\//', '', Config::get('app.hostname'));
+				$appName = Config::get('syslog::app.appname');
 			}
 			if (empty($processID))
 			{
 				$pid = getmypid();
 				$processID = getmypid() !== false ? $pid : 0;
 			}
+			if (empty($messageID))
+			{
+				$messageID = $uuid;
+			}
 			if (empty($version))
 			{
 				$version = 1;
 			}
-
 			$this->uuid = $uuid;
 			$this->setPriority($severity, $facility);
 			$dtz = new \DateTimeZone(Config::get('app.timezone'));
